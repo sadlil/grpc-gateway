@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/textproto"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime/internal"
@@ -67,7 +68,10 @@ func ForwardResponseStream(ctx context.Context, marshaler Marshaler, w http.Resp
 
 func handleForwardResponseServerMetadata(w http.ResponseWriter, md ServerMetadata) {
 	for k, vs := range md.HeaderMD {
-		hKey := fmt.Sprintf("%s%s", metadataHeaderPrefix, k)
+		hKey := k
+		if !strings.HasPrefix(strings.ToLower(k), corsHeaderPrefix) {
+			hKey = fmt.Sprintf("%s%s", metadataHeaderPrefix, k)
+		}
 		for i := range vs {
 			w.Header().Add(hKey, vs[i])
 		}

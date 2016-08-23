@@ -22,6 +22,10 @@ const metadataGrpcTimeout = "Grpc-Timeout"
 const xForwardedFor = "X-Forwarded-For"
 const xForwardedHost = "X-Forwarded-Host"
 
+const cookieHeader = "Cookie"
+const corsHeaderPrefix = "access-control-"
+const csrfTokenHeader = "X-Phabricator-Csrf"
+
 var (
 	// DefaultContextTimeout is used for gRPC call context.WithTimeout whenever a Grpc-Timeout inbound
 	// header isn't present. If the value is 0 the sent `context` will not have a timeout.
@@ -52,6 +56,18 @@ func AnnotateContext(ctx context.Context, req *http.Request) (context.Context, e
 				pairs = append(pairs, "authorization", val)
 				continue
 			}
+			if key == cookieHeader {
+				pairs = append(pairs, key, val)
+				continue
+			}
+			if strings.EqualFold(key, csrfTokenHeader) {
+				pairs = append(pairs, key, val)
+				continue
+			}
+			if strings.EqualFold(key, corsHeaderPrefix) {
+				pairs = append(pairs, key, val)
+				continue
+			}
 			if strings.HasPrefix(key, metadataHeaderPrefix) {
 				pairs = append(pairs, key[len(metadataHeaderPrefix):], val)
 			}
@@ -74,6 +90,14 @@ func AnnotateContext(ctx context.Context, req *http.Request) (context.Context, e
 			grpclog.Printf("invalid remote addr: %s", addr)
 		}
 	}
+
+	// adding extra headers to metadata
+	pairs = append(pairs,
+		"http-request-method", req.Method,
+		"http-request-endpoint", req.RequestURI,
+		"http-request-host", req.Host,
+		"http-userAgent", req.UserAgent(),
+	)
 
 	if timeout != 0 {
 		ctx, _ = context.WithTimeout(ctx, timeout)
